@@ -84,4 +84,5 @@ public class CrimePagerActivity extends AppCompatActivity implements View.OnClic
                 break;
         }
     }
+
 }
