@@ -15,9 +15,11 @@ public class Crime {
 
 
     public Crime() {
-        mId = UUID.randomUUID();
-        /*@SuppressLint("SimpleDateFormat") SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEEE, MMM d, yyyy 'at' HH:mm:ss");
-        mDate = simpleDateFormat.format(new Date());*/
+        this(UUID.randomUUID());
+    }
+
+    public Crime(UUID id){
+        mId = id;
         mDate = new Date();
     }
 
