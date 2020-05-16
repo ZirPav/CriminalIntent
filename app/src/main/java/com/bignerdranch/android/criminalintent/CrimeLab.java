@@ -43,8 +43,8 @@ public class CrimeLab {
     }
 
     public void deleteCrime(Crime crime) {
-        ContentValues values = getContentValues(crime);
-        mDatabase.delete(CrimeTable.NAME, null, null);
+        String uuidString = crime.getId().toString();
+        mDatabase.delete(CrimeTable.NAME, CrimeTable.Cols.UUID + " = ?", new String[]{uuidString});
     }
 
     public List<Crime> getCrimes() {
