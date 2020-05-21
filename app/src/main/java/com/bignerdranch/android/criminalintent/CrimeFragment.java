@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.ShareCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
@@ -12,10 +13,13 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -30,10 +34,14 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.text.format.DateFormat;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 
+import java.io.File;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import static android.widget.CompoundButton.*;
@@ -46,8 +54,10 @@ public class CrimeFragment extends Fragment {
 
     private static final int REQUEST_DATE = 0;
     private static final int REQUEST_TIME = 1;
-    private static final int REQUEST_CONTACT = 1;
+    private static final int REQUEST_CONTACT = 2;
+    private static final int REQUEST_PHOTO = 3;
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 132;
+
 
     private Crime mCrime;
     private EditText mTitleField;
@@ -57,6 +67,9 @@ public class CrimeFragment extends Fragment {
     private Button mReportButton;
     private Button mSuspectButton;
     private Button mCallButton;
+    private ImageButton mPhotoButton;
+    private ImageView mPhotoView;
+    private File mPhotoFile;
 
     public static CrimeFragment newInstance(UUID crimeId) {
         Bundle args = new Bundle();
@@ -74,6 +87,7 @@ public class CrimeFragment extends Fragment {
 
         UUID crimeId = (UUID) getArguments().getSerializable(ARG_CRIME_ID);
         mCrime = CrimeLab.get(getActivity()).getCrime(crimeId);
+        mPhotoFile = CrimeLab.get(getActivity()).getPhotoFile(mCrime);
     }
 
     @Override
@@ -215,12 +229,12 @@ public class CrimeFragment extends Fragment {
 
 
         /*Вообщем ситуация такая что теперь(апи 23+) разрешения лишь в манифесте не хватает и необходимо
-        * запрашивать разрешение у пользователя для этого мы зашли сюда
-        * https://developer.android.com/training/permissions/requesting.html#java. Суть такая, жмется кнопка,
-        * получаем запрос, если разрешение уже получено, то выполняем наш код, если нет, то запрашиваем разрешение,
-        * результат запроса получает метод onRequestPermissionsResult, который у нас выше, запрос индентифицируется
-        * флагом MY_PERMISSIONS_REQUEST_READ_CONTACTS (в нашем случае), по аналогии с получением результатов от
-        * интентов. Если результат запроса положительный выполняем код, если нет, делаем что хотим .*/
+         * запрашивать разрешение у пользователя для этого мы зашли сюда
+         * https://developer.android.com/training/permissions/requesting.html#java. Суть такая, жмется кнопка,
+         * получаем запрос, если разрешение уже получено, то выполняем наш код, если нет, то запрашиваем разрешение,
+         * результат запроса получает метод onRequestPermissionsResult, который у нас выше, запрос индентифицируется
+         * флагом MY_PERMISSIONS_REQUEST_READ_CONTACTS (в нашем случае), по аналогии с получением результатов от
+         * интентов. Если результат запроса положительный выполняем код, если нет, делаем что хотим .*/
         mCallButton = v.findViewById(R.id.call_suspect);
         mCallButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -234,7 +248,7 @@ public class CrimeFragment extends Fragment {
                             new String[]{Manifest.permission.READ_CONTACTS},
                             MY_PERMISSIONS_REQUEST_READ_CONTACTS);
 
-                }else{
+                } else {
                     Log.d(LOG_TAG, "click: " + ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " = '"
                             + mCrime.getSuspect() + "'");
                     Uri contactUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
@@ -268,9 +282,34 @@ public class CrimeFragment extends Fragment {
 
         PackageManager packageManager = getActivity().getPackageManager();
         if (packageManager.resolveActivity(pickContact,
-                PackageManager.MATCH_DEFAULT_ONLY) == null){
+                PackageManager.MATCH_DEFAULT_ONLY) == null) {
             mSuspectButton.setEnabled(false);
         }
+
+        mPhotoButton = v.findViewById(R.id.crime_camera);
+        final Intent captureImage = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        boolean canTakePhoto = mPhotoFile != null &&
+                captureImage.resolveActivity(packageManager) != null;
+
+        mPhotoButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Uri uri = FileProvider.getUriForFile(getActivity(),
+                        "com.bignerdranch.android.criminalintent.fileprovider",
+                        mPhotoFile);
+                captureImage.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+                List<ResolveInfo> cameraActivities = getActivity()
+                        .getPackageManager().queryIntentActivities(captureImage,
+                                PackageManager.MATCH_DEFAULT_ONLY);
+                for (ResolveInfo activity:cameraActivities) {
+                    getActivity().grantUriPermission(activity.activityInfo.packageName,
+                            uri,Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                }
+                startActivityForResult(captureImage, REQUEST_PHOTO);
+            }
+        });
+        mPhotoView = v.findViewById(R.id.crime_photo);
+        updatePhotoView();
 
         return v;
     }
@@ -283,7 +322,7 @@ public class CrimeFragment extends Fragment {
             Date date = (Date) data.getSerializableExtra(DatePickerFragment.EXTRA_DATE);
             mCrime.setDate(date);
             updateDate();
-        } /*else if (requestCode == REQUEST_TIME) {
+        } else if (requestCode == REQUEST_TIME) {
             Date time = (Date) data.getSerializableExtra(TimePickerFragment.EXTRA_TIME);
             Date date = mCrime.getDate();
             date.setHours(time.getHours());
@@ -291,7 +330,7 @@ public class CrimeFragment extends Fragment {
             date.setSeconds(0);
             mCrime.setDate(date);
             updateDate();
-        }*/ else if (requestCode == REQUEST_CONTACT && data != null) {
+        } else if (requestCode == REQUEST_CONTACT && data != null) {
             Uri contactUri = data.getData();
             // Определение полей, значения которых должны быть
             // возвращены запросом.
@@ -304,7 +343,7 @@ public class CrimeFragment extends Fragment {
                     .query(contactUri, queryFields, null, null, null);
             try {
                 //Проверка получения результатов
-                if (c.getCount() == 0){
+                if (c.getCount() == 0) {
                     return;
                 }
                 //Извлечение первого столбца данных - имени подозреваемого.
@@ -312,9 +351,15 @@ public class CrimeFragment extends Fragment {
                 String suspect = c.getString(0);
                 mCrime.setSuspect(suspect);
                 mSuspectButton.setText(suspect);
-            }finally {
+            } finally {
                 c.close();
             }
+        }else if (requestCode == REQUEST_PHOTO){
+            Uri uri = FileProvider.getUriForFile(getActivity(),
+                    "com.bignerdranch.android.criminalintent.fileprovider",
+                    mPhotoFile);
+            getActivity().revokeUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            updatePhotoView();
         }
 
 
@@ -345,6 +390,14 @@ public class CrimeFragment extends Fragment {
 
         String report = getString(R.string.crime_report, mCrime.getTitle(), dateString, solvedString, suspect);
         return report;
+    }
+    private void updatePhotoView(){
+        if (mPhotoFile == null || !mPhotoFile.exists()){
+            mPhotoView.setImageDrawable(null);
+        }else{
+            Bitmap bitmap = PictureUtils.getScaledBitmap(mPhotoFile.getPath(), getActivity());
+            mPhotoView.setImageBitmap(bitmap);
+        }
     }
 
     @Override
