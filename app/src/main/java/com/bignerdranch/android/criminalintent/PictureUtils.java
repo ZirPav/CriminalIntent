@@ -6,11 +6,17 @@ import android.graphics.BitmapFactory;
 import android.graphics.Point;
 
 public class PictureUtils {
+    public static int imgWidth = 0;
+    public static int imgHeight = 0;
 
     public static Bitmap getScaledBitmap(String path, Activity activity){
         Point size = new Point();
-        activity.getWindowManager().getDefaultDisplay()
-                .getSize(size);
+        if(imgWidth == 0 || imgHeight == 0) {
+            activity.getWindowManager().getDefaultDisplay().getSize(size);
+        } else {
+            size.x = imgWidth;
+            size.y = imgHeight;
+        }
         return getScaledBitmap(path, size.x, size.y);
     }
 
@@ -37,5 +43,11 @@ public class PictureUtils {
 
         //Чтение данных и создание итогового изображения
         return BitmapFactory.decodeFile(path, options);
+    }
+
+    public static Bitmap getScaledBitmapFull(String path, Activity activity){
+        Point size = new Point();
+        activity.getWindowManager().getDefaultDisplay().getSize(size);
+        return getScaledBitmap(path, size.x, size.y);
     }
 }
