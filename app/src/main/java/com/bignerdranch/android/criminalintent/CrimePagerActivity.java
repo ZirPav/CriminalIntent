@@ -18,7 +18,8 @@ import androidx.viewpager.widget.ViewPager;
 import java.util.List;
 import java.util.UUID;
 
-public class CrimePagerActivity extends AppCompatActivity implements View.OnClickListener{
+public class CrimePagerActivity extends AppCompatActivity implements View.OnClickListener,
+CrimeFragment.Callbacks{
 
     private static final String EXTRA_CRIME_ID =
             "com.bignerdranch.android.criminalintent.crime_id";
@@ -85,4 +86,8 @@ public class CrimePagerActivity extends AppCompatActivity implements View.OnClic
         }
     }
 
+    @Override
+    public void onCrimeUpdate(Crime crime) {
+
+    }
 }
