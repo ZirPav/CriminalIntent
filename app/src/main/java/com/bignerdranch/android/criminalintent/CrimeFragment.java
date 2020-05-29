@@ -45,6 +45,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static android.widget.CompoundButton.*;
@@ -417,13 +418,15 @@ public class CrimeFragment extends Fragment {
         }
     }
 
-    private void updateCrime(){
+    private void updateCrime() {
         CrimeLab.get(getActivity()).updateCrime(mCrime);
         mCallbacks.onCrimeUpdate(mCrime);
     }
 
     private void updateDate() {
-        mDateButton.setText(mCrime.getDate().toString());
+        String dateFormat = "EEE, MMM dd";
+        String dateSetButton = DateFormat.format(dateFormat, mCrime.getDate()).toString();
+        mDateButton.setText(dateSetButton);
     }
 
 
@@ -451,9 +454,11 @@ public class CrimeFragment extends Fragment {
     private void updatePhotoView() {
         if (mPhotoFile == null || !mPhotoFile.exists()) {
             mPhotoView.setImageDrawable(null);
+            mPhotoView.setContentDescription(getString(R.string.crime_photo_no_image_description));
         } else {
             Bitmap bitmap = PictureUtils.getScaledBitmap(mPhotoFile.getPath(), getActivity());
             mPhotoView.setImageBitmap(bitmap);
+            mPhotoView.setContentDescription(getString(R.string.crime_photo_image_description));
         }
     }
 
